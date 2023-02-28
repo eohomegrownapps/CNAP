@@ -1,17 +1,21 @@
 import argparse
 from gym import spaces
+from distutils.util import strtobool
 
+def parse_bool(v):
+    return (strtobool(v) == 1)
 
 def get_args():
     parser = argparse.ArgumentParser(description='main')
 
     parser.add_argument('--seed', type=int, default=11111, help='seed')
+    parser.add_argument('--codebase_backup_dir', type=str, default=None, help='codebase backup dir')
 
     # Executor parameters
     parser.add_argument('--graph_type', type=str, default='erdos-renyi', help='graph types that executor trained on')
     parser.add_argument('--gnn_steps', type=int, default=1, help='depth of gnn')
-    parser.add_argument('--activation', type=bool, default=False, help='whether to include message activation')
-    parser.add_argument('--layernorm', type=bool, default=True, help='whether to include layer norm')
+    parser.add_argument('--activation', type=parse_bool, default=False, help='whether to include message activation')
+    parser.add_argument('--layernorm', type=parse_bool, default=True, help='whether to include layer norm')
     parser.add_argument('--neighbour_aggregation', type=str, default='max',
                         help='method to aggregate neighbour messages')
     parser.add_argument('--sample_method', type=str, default="expand_all",
@@ -22,11 +26,11 @@ def get_args():
                                  "encoder_cat_executor_decode"])
 
     # Policy parameters
-    parser.add_argument('--freeze_encoder', type=bool, default=False, help='whether to freeze pretrained encoder')
-    parser.add_argument('--freeze_executor', type=bool, default=True, help='whether to freeze pretrained executor')
+    parser.add_argument('--freeze_encoder', type=parse_bool, default=False, help='whether to freeze pretrained encoder')
+    parser.add_argument('--freeze_executor', type=parse_bool, default=True, help='whether to freeze pretrained executor')
     parser.add_argument('--transe2gnn', type=int, default=1, help='number of layers between transition and executor')
     parser.add_argument('--gnn_decoder', type=int, default=1, help='number f layers after executor')
-    parser.add_argument('--graph_detach', type=bool, default=False)
+    parser.add_argument('--graph_detach', type=parse_bool, default=False)
 
     # PPO parameters
     parser.add_argument('--gamma', type=float, default=0.99)
@@ -35,19 +39,20 @@ def get_args():
     parser.add_argument('--entropy_coef', type=float, default=0.01)
     parser.add_argument('--ppo_epoch', type=int, default=None)
     parser.add_argument('--num_mini_batch', type=int, default=32)
-    parser.add_argument('--use_gae', type=bool, default=False)
+    parser.add_argument('--use_gae', type=parse_bool, default=False)
     parser.add_argument('--gae_lambda', type=float, default=0.95)
     parser.add_argument('--max_grad_norm', type=float, default=0.5)
-    parser.add_argument('--transe_detach', type=bool, default=False)
-    parser.add_argument('--use_clipped_value_loss', type=bool, default=True)
+    parser.add_argument('--transe_detach', type=parse_bool, default=False)
+    parser.add_argument('--use_clipped_value_loss', type=parse_bool, default=True)
     parser.add_argument('--transe_loss_coef', type=float, default=0.001)
-    parser.add_argument('--debug', type=bool, default=False)
+    parser.add_argument('--debug', type=parse_bool, default=False)
     parser.add_argument('--lr', type=float, default=0.0003)
 
     # Control parameters
     parser.add_argument('--env', type=str, default='cartpole', help='environment to run on')
-    parser.add_argument('--include_transe', type=bool, default=False, help='whether to include pretrained transe')
-    parser.add_argument('--include_executor', type=bool, default=False, help='whether to include pretrained executor')
+    parser.add_argument('--include_transe', type=parse_bool, default=False, help='whether to include pretrained transe')
+    parser.add_argument('--include_executor', type=parse_bool, default=False, help='whether to include pretrained executor')
+    parser.add_argument('--run_executor', type=parse_bool, default=True, help='whether to run executor after generating graph')
     parser.add_argument('--gnn_hidden_dim', type=int, default=None, help='dimension of executor hidden layers')
     parser.add_argument('--transe_embedding_dim', type=int, default=None, help='dimension of state embeddings')
     parser.add_argument('--transe_hidden_dim', type=int, default=None, help='dimension of transe hidden layers')
@@ -62,15 +67,15 @@ def get_args():
     parser.add_argument('--action_bins', type=int, default=11)
     parser.add_argument('--num_neighbours', type=int, default=10)
     parser.add_argument('--pass_threshold', type=float, default=0.95)
-    parser.add_argument('--save_model', type=bool, default=False, help='whether to save the trained model')
+    parser.add_argument('--save_model', type=parse_bool, default=False, help='whether to save the trained model')
     parser.add_argument('--device', type=str, default='cpu')
-    parser.add_argument('--evaluate', type=bool, default=False, help='whether to evaluate on test episodes')
-    parser.add_argument('--lr_decay', type=bool, default=False)
+    parser.add_argument('--evaluate', type=parse_bool, default=False, help='whether to evaluate on test episodes')
+    parser.add_argument('--lr_decay', type=parse_bool, default=False)
     parser.add_argument('--save_interval', type=int, default=100, help='update interval to save the trained model')
     parser.add_argument('--save_dir', type=str, default='logs', help='directory to save model')
     parser.add_argument('--log_dir', type=str, default='logs/logs', help='directory to save logs')
-    parser.add_argument('--enable_time_limit', type=bool, default=False, help='whether take time limit into acount')
-    parser.add_argument('--record_video', type=bool, default=False, help='whether to record the video')
+    parser.add_argument('--enable_time_limit', type=parse_bool, default=False, help='whether take time limit into acount')
+    parser.add_argument('--record_video', type=parse_bool, default=False, help='whether to record the video')
     parser.add_argument('--save_video_interval', type=int, default=204800, help='interval to record video in terms of steps')
     parser.add_argument('--video_length', type=int, default=500, help='length of video recorded')
 

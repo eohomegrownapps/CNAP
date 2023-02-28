@@ -31,7 +31,7 @@ class Policy(nn.Module):
                  sample_method="uniform",
                  num_neighbours=5,
                  transe2gnn=1, gnn_decoder=1, gnn_steps=1,
-                 graph_detach=False):
+                 graph_detach=False, run_executor=True):
         super(Policy, self).__init__()
 
         self.transe = transe
@@ -39,6 +39,7 @@ class Policy(nn.Module):
         self.graph_detach = graph_detach
         self.num_processes = num_processes
         self.gamma = gamma
+        self.run_executor = run_executor 
 
         if freeze_encoder:
             print("Encoder: freeze")
@@ -73,6 +74,9 @@ class Policy(nn.Module):
                     param.requires_grad = False
             else:
                 print("GNN: train")
+            
+            if not run_executor:
+                print("Not running executor")
 
             # Method to handle outputs from encoder and executor
             self.cat_method = cat_method
@@ -155,11 +159,15 @@ class Policy(nn.Module):
         if self.transe2gnn > 0:
             node_features = self.transe2gnn_fc(node_features)
         embedded_edge_features = self.edge_proj(edge_features)
-        all_latents = self.executor(node_features, senders, receivers, embedded_edge_features)
-
-        for i in range(self.gnn_steps - 1):
-            all_latents = all_latents + node_features
+        
+        all_latents = node_features
+        
+        if self.run_executor:
             all_latents = self.executor(all_latents, senders, receivers, embedded_edge_features)
+
+            for i in range(self.gnn_steps - 1):
+                all_latents = all_latents + node_features
+                all_latents = self.executor(all_latents, senders, receivers, embedded_edge_features)
 
         if self.gnn_decoder > 0:
             all_latents = self.gnn_decoder_fc(all_latents)

@@ -2,6 +2,8 @@ import torch
 from torch import nn
 from torch_scatter import scatter_max, scatter_sum
 
+from jaxtyping import Float, Integer, Bool
+from torch import Tensor
 
 class MessagePassing(nn.Module):
     def __init__(self,
@@ -25,7 +27,13 @@ class MessagePassing(nn.Module):
         if self.layernorm:
             self.ln = nn.LayerNorm(hidden_dimension)
 
-    def forward(self, node_features, senders, receivers, edge_features):
+    def forward(
+        self, 
+        node_features: Float[Tensor, "num_nodes latent_dims"], 
+        senders: Integer[Tensor, "num_edges"], 
+        receivers: Integer[Tensor, "num_edges"], 
+        edge_features: Float[Tensor, "num_edges latent_dims"]
+    ) -> Float[Tensor, "num_nodes latent_dims"]:
         # message
         message = self.message_proj(
             torch.cat((node_features[senders], node_features[receivers], edge_features), dim=-1))

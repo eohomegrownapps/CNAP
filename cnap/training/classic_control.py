@@ -1,6 +1,12 @@
 import os
+from pathlib import Path
+import shutil
 import sys
+import time
+from datetime import datetime
+from typing import Optional
 import numpy as np
+import pathspec
 import torch
 import torch.optim as optim
 
@@ -38,10 +44,59 @@ def run_fixed_num_episodes(env, policy, rollout, num_episodes, deterministic, fi
             rollout, reward_total, done_episodes, average_reward))
     return average_reward
 
+def backup_parent_codebase(src: Path, dst: Path) -> Optional[Path]:
+    """Makes a ZIP copy of the codebase containing the file / directory src,
+    respecting the .gitignore file, saved to dst/codebase-%Y%m%d-%H%M%S.zip
+
+    We walk up the directory tree until we encounter the first folder containing a
+    .gitignore file.
+
+    Args:
+        src (Path): Path within codebase
+        dst (Path): Path to save ZIP backup
+
+    Returns:
+        Path: The full path to the backed-up codebase
+    """
+    # taken from https://waylonwalker.com/til/gitignore-python/
+    while src.name != "nar":
+        if src == src.parent:
+            return None
+        src = src.parent
+
+    files = src.glob("**/*")
+    lines = (src / ".gitignore").read_text().splitlines() + [".git"]
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", lines)
+
+    matched_files = [file for file in files if not spec.match_file(str(file))]
+
+    codebase_name = f'codebase-{datetime.utcnow().strftime("%Y%m%d-%H%M%S.%f")}'
+    dst_folder = dst / codebase_name
+
+    for file in matched_files:
+        if os.path.isdir(file):
+            continue
+        dst_path = dst_folder / file.relative_to(src)
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        shutil.copy(file, dst_path)
+
+    shutil.make_archive(str(dst_folder).rstrip("/"), "zip", dst_folder)
+    shutil.rmtree(dst_folder)
+    return dst / f"{codebase_name}.zip"
+
 
 def main(args=None):
     if args is None:
         args = get_args()
+    print(args)
+    if args.codebase_backup_dir:
+        backup_path = backup_parent_codebase(
+            Path(os.path.realpath(__file__)).parent, Path(args.codebase_backup_dir)
+        )
+        if backup_path is not None:
+            print(f"Codebase backed up at {backup_path}")
+        else:
+            print("Failed to back up codebase")
 
     model_name = 'xlvin-r' if args.graph_type == "erdos-renyi" else 'xlvin-cp'
     if args.include_executor:
@@ -98,7 +153,7 @@ def main(args=None):
                         activation=args.activation,
                         layernorm=args.layernorm,
                         neighbour_aggregation=args.neighbour_aggregation).to(args.device)
-    executor_path = f'cnap/models/executor/trained_executor/{args.graph_type}-gnnstep{args.gnn_steps}-' \
+    executor_path = f'../models/executor/trained_executor/{args.graph_type}-gnnstep{args.gnn_steps}-' \
                     f'act{args.activation}-ln{args.layernorm}.pt'
     if args.include_executor:
         executor.load_state_dict(torch.load(executor_path, map_location=args.device))
@@ -112,6 +167,7 @@ def main(args=None):
                     gnn_hidden_dim=args.gnn_hidden_dim,
                     num_processes=args.num_processes,
                     include_executor=args.include_executor,
+                    run_executor=args.run_executor,
                     executor=executor.message_passing,
                     freeze_encoder=args.freeze_encoder,
                     freeze_executor=args.freeze_executor,
